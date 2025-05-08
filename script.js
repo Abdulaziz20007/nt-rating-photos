@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         NT Student Photos
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  Display student photos in NT rating table with fullscreen view
-// @author       You
+// @author       https://little_coder.t.me
 // @match        https://erp.student.najottalim.uz/*
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
@@ -87,6 +87,31 @@
       .student-photo:hover {
         transform: scale(1.1);
       }
+      
+      .photo-controls {
+        display: flex;
+        justify-content: center;
+        gap: 5px;
+        margin-top: 5px;
+      }
+      
+      .rotate-btn {
+        width: 20px;
+        height: 20px;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 10px;
+      }
+      
+      .rotate-btn:hover {
+        background-color: rgba(0, 0, 0, 0.9);
+      }
     `;
     document.head.appendChild(style);
   }
@@ -139,7 +164,59 @@
     const { modalOverlay, modalImg, modalName } = getModalElements();
 
     modalImg.src = imgSrc;
+    modalImg.style.transform = "rotate(0deg)"; // Reset rotation for fullscreen view
     modalName.textContent = studentName || "";
+
+    // Add rotation controls to fullscreen view
+    let modalControls = modalOverlay.querySelector(".modal-photo-controls");
+    if (!modalControls) {
+      modalControls = document.createElement("div");
+      modalControls.className = "photo-controls modal-photo-controls";
+      modalControls.style.position = "absolute";
+      modalControls.style.bottom = "50px";
+      modalControls.style.left = "50%";
+      modalControls.style.transform = "translateX(-50%)";
+      modalControls.style.zIndex = "10000";
+
+      // Left rotation button
+      const rotateLeftBtn = document.createElement("button");
+      rotateLeftBtn.className = "rotate-btn";
+      rotateLeftBtn.style.width = "30px";
+      rotateLeftBtn.style.height = "30px";
+      rotateLeftBtn.style.fontSize = "16px";
+      rotateLeftBtn.innerHTML = "↺";
+      rotateLeftBtn.title = "Rotate left";
+      rotateLeftBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const currentRotation = parseInt(modalImg.dataset.rotation || "0");
+        const newRotation = currentRotation - 90;
+        modalImg.dataset.rotation = newRotation;
+        modalImg.style.transform = `rotate(${newRotation}deg)`;
+      });
+
+      // Right rotation button
+      const rotateRightBtn = document.createElement("button");
+      rotateRightBtn.className = "rotate-btn";
+      rotateRightBtn.style.width = "30px";
+      rotateRightBtn.style.height = "30px";
+      rotateRightBtn.style.fontSize = "16px";
+      rotateRightBtn.innerHTML = "↻";
+      rotateRightBtn.title = "Rotate right";
+      rotateRightBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const currentRotation = parseInt(modalImg.dataset.rotation || "0");
+        const newRotation = currentRotation + 90;
+        modalImg.dataset.rotation = newRotation;
+        modalImg.style.transform = `rotate(${newRotation}deg)`;
+      });
+
+      modalControls.appendChild(rotateLeftBtn);
+      modalControls.appendChild(rotateRightBtn);
+
+      modalOverlay
+        .querySelector(".photo-modal-content")
+        .appendChild(modalControls);
+    }
 
     modalOverlay.style.display = "flex";
     setTimeout(() => {
@@ -623,12 +700,20 @@
         "MuiTableCell-root MuiTableCell-body MuiTableCell-sizeMedium css-wsooev";
       photoCell.setAttribute("data-th", "Rasm");
 
+      // Create a container for the photo and controls
+      const photoContainer = document.createElement("div");
+      photoContainer.style.display = "flex";
+      photoContainer.style.flexDirection = "column";
+      photoContainer.style.alignItems = "center";
+
       const img = document.createElement("img");
       img.className = "student-photo";
       img.style.width = "40px";
       img.style.height = "40px";
       img.style.borderRadius = "50%";
       img.style.objectFit = "cover";
+      img.style.transition = "transform 0.2s ease";
+      img.dataset.rotation = "0"; // Store current rotation value
 
       let imgSrc = "https://via.placeholder.com/40";
       if (student.photo) {
@@ -645,7 +730,43 @@
         openPhotoModal(imgSrc, fullName);
       });
 
-      photoCell.appendChild(img);
+      photoContainer.appendChild(img);
+
+      // Create rotation controls
+      const controlsDiv = document.createElement("div");
+      controlsDiv.className = "photo-controls";
+
+      // Left rotation button
+      const rotateLeftBtn = document.createElement("button");
+      rotateLeftBtn.className = "rotate-btn";
+      rotateLeftBtn.innerHTML = "↺";
+      rotateLeftBtn.title = "Rotate left";
+      rotateLeftBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const currentRotation = parseInt(img.dataset.rotation) || 0;
+        const newRotation = currentRotation - 90;
+        img.dataset.rotation = newRotation;
+        img.style.transform = `rotate(${newRotation}deg)`;
+      });
+
+      // Right rotation button
+      const rotateRightBtn = document.createElement("button");
+      rotateRightBtn.className = "rotate-btn";
+      rotateRightBtn.innerHTML = "↻";
+      rotateRightBtn.title = "Rotate right";
+      rotateRightBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const currentRotation = parseInt(img.dataset.rotation) || 0;
+        const newRotation = currentRotation + 90;
+        img.dataset.rotation = newRotation;
+        img.style.transform = `rotate(${newRotation}deg)`;
+      });
+
+      controlsDiv.appendChild(rotateLeftBtn);
+      controlsDiv.appendChild(rotateRightBtn);
+      photoContainer.appendChild(controlsDiv);
+
+      photoCell.appendChild(photoContainer);
       row.appendChild(photoCell);
 
       // Name cell
