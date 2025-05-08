@@ -159,195 +159,39 @@
     return { modalOverlay, modalImg, modalName };
   }
 
-  // Open photo modal
-  function openPhotoModal(imgSrc, studentName) {
-    const { modalOverlay, modalImg, modalName } = getModalElements();
-
-    modalImg.src = imgSrc;
-    modalImg.style.transform = "rotate(0deg)"; // Reset rotation for fullscreen view
-    modalName.textContent = studentName || "";
-
-    // Add rotation controls to fullscreen view
-    let modalControls = modalOverlay.querySelector(".modal-photo-controls");
-    if (!modalControls) {
-      modalControls = document.createElement("div");
-      modalControls.className = "photo-controls modal-photo-controls";
-      modalControls.style.position = "absolute";
-      modalControls.style.bottom = "50px";
-      modalControls.style.left = "50%";
-      modalControls.style.transform = "translateX(-50%)";
-      modalControls.style.zIndex = "10000";
-
-      // Left rotation button
-      const rotateLeftBtn = document.createElement("button");
-      rotateLeftBtn.className = "rotate-btn";
-      rotateLeftBtn.style.width = "30px";
-      rotateLeftBtn.style.height = "30px";
-      rotateLeftBtn.style.fontSize = "16px";
-      rotateLeftBtn.innerHTML = "↺";
-      rotateLeftBtn.title = "Rotate left";
-      rotateLeftBtn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        const currentRotation = parseInt(modalImg.dataset.rotation || "0");
-        const newRotation = currentRotation - 90;
-        modalImg.dataset.rotation = newRotation;
-        modalImg.style.transform = `rotate(${newRotation}deg)`;
-      });
-
-      // Right rotation button
-      const rotateRightBtn = document.createElement("button");
-      rotateRightBtn.className = "rotate-btn";
-      rotateRightBtn.style.width = "30px";
-      rotateRightBtn.style.height = "30px";
-      rotateRightBtn.style.fontSize = "16px";
-      rotateRightBtn.innerHTML = "↻";
-      rotateRightBtn.title = "Rotate right";
-      rotateRightBtn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        const currentRotation = parseInt(modalImg.dataset.rotation || "0");
-        const newRotation = currentRotation + 90;
-        modalImg.dataset.rotation = newRotation;
-        modalImg.style.transform = `rotate(${newRotation}deg)`;
-      });
-
-      modalControls.appendChild(rotateLeftBtn);
-      modalControls.appendChild(rotateRightBtn);
-
-      modalOverlay
-        .querySelector(".photo-modal-content")
-        .appendChild(modalControls);
-    }
-
-    modalOverlay.style.display = "flex";
-    setTimeout(() => {
-      modalOverlay.classList.add("visible");
-    }, 10);
-  }
-
-  // Close photo modal
-  function closePhotoModal() {
-    const { modalOverlay } = getModalElements();
-
-    modalOverlay.classList.remove("visible");
-    setTimeout(() => {
-      modalOverlay.style.display = "none";
-    }, 300);
-  }
-
-  // Get or create modal elements
-  function getModalElements() {
-    let modalOverlay = document.querySelector(".photo-modal-overlay");
-    if (!modalOverlay) {
-      return createPhotoModal();
-    }
-
-    return {
-      modalOverlay,
-      modalImg: modalOverlay.querySelector(".photo-modal-img"),
-      modalName: modalOverlay.querySelector(".photo-modal-name"),
-    };
-  }
-
-  // Function to check if we're on the rating page
-  function isRatingPage() {
-    // Check URL matches the rating page
-    const isRatingURL =
-      /^https:\/\/erp\.student\.najottalim\.uz\/rating\/?$/.test(
-        window.location.href
-      );
-    if (!isRatingURL) return false;
-
-    // Additional check: look for rating-specific elements
-    return true;
-  }
-
-  // Function to verify the table is the student rating table
-  function isRatingTable(table) {
-    if (!table) return false;
-
-    // Check for table structure that matches the rating table
-    const headerRow = table.querySelector("thead tr");
-    if (!headerRow) return false;
-
-    // Check for characteristic column headers that would be in the rating table
-    const headers = headerRow.querySelectorAll("th");
-    if (headers.length < 5) return false; // Rating table has multiple columns
-
-    // Look for specific headers like "Reyting", "Ism-familiya", "XP", etc.
-    const headerTexts = Array.from(headers).map((th) => th.textContent.trim());
-    return (
-      headerTexts.includes("Reyting") ||
-      headerTexts.includes("Ism-familiya") ||
-      headerTexts.includes("XP") ||
-      headerTexts.includes("Bosqich")
-    );
-  }
-
-  // Function to find the student rating table
-  function findRatingTable() {
-    // First, make sure we're on the rating page
-    if (!isRatingPage()) return null;
-
-    // Find all tables in the document
-    const tables = document.querySelectorAll("table");
-
-    // Check each table to find the one that's the rating table
-    for (const table of tables) {
-      if (isRatingTable(table)) {
-        return table;
-      }
-    }
-
-    return null;
-  }
-
-  // Function to check if table should be processed
-  function shouldProcessTable() {
-    // Check if URL is the rating page
-    if (
-      !/^https:\/\/erp\.student\.najottalim\.uz\/rating\/?$/.test(
-        window.location.href
-      )
-    ) {
-      console.log("Not on rating page, script will not run");
-      return false;
-    }
-
-    // Find the table
-    const table = document.querySelector(".MuiTable-root");
-    if (!table) {
-      console.log("Table not found");
-      return false;
-    }
-
-    // Verify it's the rating table by checking for specific columns
-    const headers = Array.from(table.querySelectorAll("thead th")).map((th) =>
-      th.textContent.trim()
-    );
-
-    // Check for at least 3 of these rating-specific columns
-    const ratingColumns = [
-      "Reyting",
-      "Ism-familiya",
-      "XP",
-      "Kumush",
-      "Bosqich",
-      "Kurs",
-    ];
-    const matchingColumns = ratingColumns.filter((col) =>
-      headers.includes(col)
-    );
-
-    if (matchingColumns.length < 3) {
-      console.log("Not a rating table based on columns");
-      return false;
-    }
-
-    return true;
-  }
-
   // Store the student data
   let studentData = null;
+
+  // Local storage key for rotations
+  const ROTATIONS_STORAGE_KEY = "nt_student_photos_rotations";
+
+  // Function to get stored rotations
+  function getStoredRotations() {
+    try {
+      const stored = localStorage.getItem(ROTATIONS_STORAGE_KEY);
+      return stored ? JSON.parse(stored) : {};
+    } catch (e) {
+      console.error("Error retrieving rotations from localStorage:", e);
+      return {};
+    }
+  }
+
+  // Function to save rotation for a student
+  function saveRotation(studentId, rotation) {
+    try {
+      const rotations = getStoredRotations();
+      rotations[studentId] = rotation;
+      localStorage.setItem(ROTATIONS_STORAGE_KEY, JSON.stringify(rotations));
+    } catch (e) {
+      console.error("Error saving rotation to localStorage:", e);
+    }
+  }
+
+  // Function to get rotation for a student
+  function getRotation(studentId) {
+    const rotations = getStoredRotations();
+    return rotations[studentId] || 0;
+  }
 
   // Function to fetch student data directly from the API
   async function fetchStudentData() {
@@ -713,7 +557,13 @@
       img.style.borderRadius = "50%";
       img.style.objectFit = "cover";
       img.style.transition = "transform 0.2s ease";
-      img.dataset.rotation = "0"; // Store current rotation value
+
+      // Get saved rotation (if any) for this student
+      const savedRotation = getRotation(student.id);
+      img.dataset.rotation = savedRotation;
+      if (savedRotation !== 0) {
+        img.style.transform = `rotate(${savedRotation}deg)`;
+      }
 
       let imgSrc = "https://via.placeholder.com/40";
       if (student.photo) {
@@ -727,7 +577,7 @@
 
       // Add click event for fullscreen
       img.addEventListener("click", function () {
-        openPhotoModal(imgSrc, fullName);
+        openPhotoModal(imgSrc, fullName, student.id);
       });
 
       photoContainer.appendChild(img);
@@ -747,6 +597,7 @@
         const newRotation = currentRotation - 90;
         img.dataset.rotation = newRotation;
         img.style.transform = `rotate(${newRotation}deg)`;
+        saveRotation(student.id, newRotation);
       });
 
       // Right rotation button
@@ -760,6 +611,7 @@
         const newRotation = currentRotation + 90;
         img.dataset.rotation = newRotation;
         img.style.transform = `rotate(${newRotation}deg)`;
+        saveRotation(student.id, newRotation);
       });
 
       controlsDiv.appendChild(rotateLeftBtn);
@@ -985,6 +837,211 @@
         }, 600);
       }
     });
+  }
+
+  // Open photo modal
+  function openPhotoModal(imgSrc, studentName, studentId) {
+    const { modalOverlay, modalImg, modalName } = getModalElements();
+
+    modalImg.src = imgSrc;
+    modalImg.dataset.studentId = studentId || "";
+
+    // Get saved rotation for this student in the modal
+    const savedRotation = studentId ? getRotation(studentId) : 0;
+    modalImg.dataset.rotation = savedRotation;
+    modalImg.style.transform = `rotate(${savedRotation}deg)`;
+
+    modalName.textContent = studentName || "";
+
+    // Add rotation controls to fullscreen view
+    let modalControls = modalOverlay.querySelector(".modal-photo-controls");
+    if (!modalControls) {
+      modalControls = document.createElement("div");
+      modalControls.className = "photo-controls modal-photo-controls";
+      modalControls.style.position = "absolute";
+      modalControls.style.bottom = "50px";
+      modalControls.style.left = "50%";
+      modalControls.style.transform = "translateX(-50%)";
+      modalControls.style.zIndex = "10000";
+
+      // Left rotation button
+      const rotateLeftBtn = document.createElement("button");
+      rotateLeftBtn.className = "rotate-btn";
+      rotateLeftBtn.style.width = "30px";
+      rotateLeftBtn.style.height = "30px";
+      rotateLeftBtn.style.fontSize = "16px";
+      rotateLeftBtn.innerHTML = "↺";
+      rotateLeftBtn.title = "Rotate left";
+      rotateLeftBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const currentRotation = parseInt(modalImg.dataset.rotation || "0");
+        const newRotation = currentRotation - 90;
+        modalImg.dataset.rotation = newRotation;
+        modalImg.style.transform = `rotate(${newRotation}deg)`;
+
+        // Save rotation if student ID is available
+        const studentId = modalImg.dataset.studentId;
+        if (studentId) {
+          saveRotation(studentId, newRotation);
+        }
+      });
+
+      // Right rotation button
+      const rotateRightBtn = document.createElement("button");
+      rotateRightBtn.className = "rotate-btn";
+      rotateRightBtn.style.width = "30px";
+      rotateRightBtn.style.height = "30px";
+      rotateRightBtn.style.fontSize = "16px";
+      rotateRightBtn.innerHTML = "↻";
+      rotateRightBtn.title = "Rotate right";
+      rotateRightBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const currentRotation = parseInt(modalImg.dataset.rotation || "0");
+        const newRotation = currentRotation + 90;
+        modalImg.dataset.rotation = newRotation;
+        modalImg.style.transform = `rotate(${newRotation}deg)`;
+
+        // Save rotation if student ID is available
+        const studentId = modalImg.dataset.studentId;
+        if (studentId) {
+          saveRotation(studentId, newRotation);
+        }
+      });
+
+      modalControls.appendChild(rotateLeftBtn);
+      modalControls.appendChild(rotateRightBtn);
+
+      modalOverlay
+        .querySelector(".photo-modal-content")
+        .appendChild(modalControls);
+    }
+
+    modalOverlay.style.display = "flex";
+    setTimeout(() => {
+      modalOverlay.classList.add("visible");
+    }, 10);
+  }
+
+  // Close photo modal
+  function closePhotoModal() {
+    const { modalOverlay } = getModalElements();
+
+    modalOverlay.classList.remove("visible");
+    setTimeout(() => {
+      modalOverlay.style.display = "none";
+    }, 300);
+  }
+
+  // Get or create modal elements
+  function getModalElements() {
+    let modalOverlay = document.querySelector(".photo-modal-overlay");
+    if (!modalOverlay) {
+      return createPhotoModal();
+    }
+
+    return {
+      modalOverlay,
+      modalImg: modalOverlay.querySelector(".photo-modal-img"),
+      modalName: modalOverlay.querySelector(".photo-modal-name"),
+    };
+  }
+
+  // Function to check if we're on the rating page
+  function isRatingPage() {
+    // Check URL matches the rating page
+    const isRatingURL =
+      /^https:\/\/erp\.student\.najottalim\.uz\/rating\/?$/.test(
+        window.location.href
+      );
+    if (!isRatingURL) return false;
+
+    // Additional check: look for rating-specific elements
+    return true;
+  }
+
+  // Function to verify the table is the student rating table
+  function isRatingTable(table) {
+    if (!table) return false;
+
+    // Check for table structure that matches the rating table
+    const headerRow = table.querySelector("thead tr");
+    if (!headerRow) return false;
+
+    // Check for characteristic column headers that would be in the rating table
+    const headers = headerRow.querySelectorAll("th");
+    if (headers.length < 5) return false; // Rating table has multiple columns
+
+    // Look for specific headers like "Reyting", "Ism-familiya", "XP", etc.
+    const headerTexts = Array.from(headers).map((th) => th.textContent.trim());
+    return (
+      headerTexts.includes("Reyting") ||
+      headerTexts.includes("Ism-familiya") ||
+      headerTexts.includes("XP") ||
+      headerTexts.includes("Bosqich")
+    );
+  }
+
+  // Function to find the student rating table
+  function findRatingTable() {
+    // First, make sure we're on the rating page
+    if (!isRatingPage()) return null;
+
+    // Find all tables in the document
+    const tables = document.querySelectorAll("table");
+
+    // Check each table to find the one that's the rating table
+    for (const table of tables) {
+      if (isRatingTable(table)) {
+        return table;
+      }
+    }
+
+    return null;
+  }
+
+  // Function to check if table should be processed
+  function shouldProcessTable() {
+    // Check if URL is the rating page
+    if (
+      !/^https:\/\/erp\.student\.najottalim\.uz\/rating\/?$/.test(
+        window.location.href
+      )
+    ) {
+      console.log("Not on rating page, script will not run");
+      return false;
+    }
+
+    // Find the table
+    const table = document.querySelector(".MuiTable-root");
+    if (!table) {
+      console.log("Table not found");
+      return false;
+    }
+
+    // Verify it's the rating table by checking for specific columns
+    const headers = Array.from(table.querySelectorAll("thead th")).map((th) =>
+      th.textContent.trim()
+    );
+
+    // Check for at least 3 of these rating-specific columns
+    const ratingColumns = [
+      "Reyting",
+      "Ism-familiya",
+      "XP",
+      "Kumush",
+      "Bosqich",
+      "Kurs",
+    ];
+    const matchingColumns = ratingColumns.filter((col) =>
+      headers.includes(col)
+    );
+
+    if (matchingColumns.length < 3) {
+      console.log("Not a rating table based on columns");
+      return false;
+    }
+
+    return true;
   }
 
   // Initialize the script
