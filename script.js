@@ -193,6 +193,51 @@
     return rotations[studentId] || 0;
   }
 
+  // Sort parameters
+  let sortBy = "xp"; // Default sort field
+  let orderBy = "DESC"; // Default sort direction
+
+  // Helper function to get sorting icon based on field and current sort
+  function getSortingIcon(field) {
+    if (sortBy !== field) {
+      // Default icon for unsorted columns
+      return {
+        className:
+          "MuiButtonBase-root MuiIconButton-root MuiIconButton-colorInherit MuiIconButton-sizeMedium css-1deacqj",
+        path: "m4 12 1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8z",
+      };
+    }
+
+    if (orderBy === "ASC") {
+      return {
+        className:
+          "MuiButtonBase-root MuiIconButton-root MuiIconButton-colorSuccess MuiIconButton-sizeMedium css-nzkk3",
+        path: "m4 12 1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8z",
+      };
+    } else {
+      return {
+        className:
+          "MuiButtonBase-root MuiIconButton-root MuiIconButton-colorSuccess MuiIconButton-sizeMedium css-nzkk3",
+        path: "m20 12-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8z",
+      };
+    }
+  }
+
+  // Function to handle column sort
+  function handleSort(field) {
+    if (sortBy === field) {
+      // Toggle direction if already sorting by this field
+      orderBy = orderBy === "ASC" ? "DESC" : "ASC";
+    } else {
+      // Set new field and default to descending
+      sortBy = field;
+      orderBy = "DESC";
+    }
+
+    // Refetch data with new sort parameters
+    fetchStudentData();
+  }
+
   // Function to fetch student data directly from the API
   async function fetchStudentData() {
     try {
@@ -201,11 +246,11 @@
       const currentPage = getCurrentPage();
 
       console.log(
-        `Fetching data for page ${currentPage} with ${perPageValue} items per page`
+        `Fetching data for page ${currentPage} with ${perPageValue} items per page, sorted by ${sortBy} ${orderBy}`
       );
 
-      // Construct API URL
-      const apiUrl = `https://erp.api.najottalim.uz/api/student/awards/statistics?page=${currentPage}&perPage=${perPageValue}&sortBy=xp&orderBy=DESC&statusId=1`;
+      // Construct API URL with sorting parameters
+      const apiUrl = `https://erp.api.najottalim.uz/api/student/awards/statistics?page=${currentPage}&perPage=${perPageValue}&sortBy=${sortBy}&orderBy=${orderBy}&statusId=1`;
 
       // Fetch data from API
       const response = await fetch(apiUrl, {
@@ -401,6 +446,11 @@
     const headerRow = document.createElement("tr");
     headerRow.className = "MuiTableRow-root MuiTableRow-head css-ym9ojk";
 
+    // Get sorting icons based on current sort state
+    const bosqichSortIcon = getSortingIcon("level");
+    const xpSortIcon = getSortingIcon("xp");
+    const coinSortIcon = getSortingIcon("coin");
+
     // Create header cells
     const headers = [
       { text: "Reyting", attrs: {} },
@@ -411,32 +461,20 @@
       {
         text: "Bosqich",
         attrs: {},
-        button: {
-          className:
-            "MuiButtonBase-root MuiIconButton-root MuiIconButton-colorInherit MuiIconButton-sizeMedium css-1deacqj",
-          icon: "ArrowUpwardIcon",
-          path: "m4 12 1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8z",
-        },
+        button: bosqichSortIcon,
+        sortField: "level",
       },
       {
         text: "XP",
         attrs: {},
-        button: {
-          className:
-            "MuiButtonBase-root MuiIconButton-root MuiIconButton-colorSuccess MuiIconButton-sizeMedium css-nzkk3",
-          icon: "ArrowDownwardIcon",
-          path: "m20 12-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8z",
-        },
+        button: xpSortIcon,
+        sortField: "xp",
       },
       {
         text: "Kumush",
         attrs: {},
-        button: {
-          className:
-            "MuiButtonBase-root MuiIconButton-root MuiIconButton-colorInherit MuiIconButton-sizeMedium css-1deacqj",
-          icon: "ArrowUpwardIcon",
-          path: "m4 12 1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8z",
-        },
+        button: coinSortIcon,
+        sortField: "coin",
       },
     ];
 
@@ -476,7 +514,7 @@
         svg.setAttribute("focusable", "false");
         svg.setAttribute("aria-hidden", "true");
         svg.setAttribute("viewBox", "0 0 24 24");
-        svg.setAttribute("data-testid", header.button.icon);
+        svg.setAttribute("data-testid", "ArrowUpwardIcon");
 
         const path = document.createElementNS(
           "http://www.w3.org/2000/svg",
@@ -490,6 +528,22 @@
         const span = document.createElement("span");
         span.className = "MuiTouchRipple-root css-w0pj6f";
         button.appendChild(span);
+
+        // Add click event for sorting if sortField is provided
+        if (header.sortField) {
+          button.addEventListener("click", function () {
+            handleSort(header.sortField);
+          });
+
+          // Make the whole header cell clickable for sorting
+          th.style.cursor = "pointer";
+          th.addEventListener("click", function (e) {
+            // Only trigger if not clicking on the button itself (to avoid double triggers)
+            if (!e.target.closest("button")) {
+              handleSort(header.sortField);
+            }
+          });
+        }
 
         th.appendChild(button);
       }
